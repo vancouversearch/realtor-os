@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Realtor OS</title>
-<meta name="ros-build" content="2026-10-26.1">
+<meta name="ros-build" content="2026-10-26.2">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -2626,6 +2626,7 @@ function qamOpenLead() {
 function qamArchive() {
   const lead = leads.find(l => l.id === _qam_leadId);
   if (lead) {
+    archiveKeepType(lead);
     lead.type = 'archived';
     lead.archivedAt = new Date().toISOString();
     saveLeads();
@@ -2966,14 +2967,26 @@ function deleteLead(id) {
 function archiveLead(id) {
   const lead = leads.find(l => l.id === id);
   if (!lead) return;
+  archiveKeepType(lead);
   lead.type = 'archived'; lead.archivedAt = new Date().toISOString();
   saveLeads(); renderLeads(); toast(`${lead.name} moved to Not Interested`);
 }
+/* Archiving overwrites type, so remember whether they were a buyer or seller first. */
+function archiveKeepType(lead) {
+  if (lead.type === 'archived') return;
+  if (!lead.leadType) lead.leadType = lead.type === 'seller' ? 'seller' : 'buyer';
+  lead.archivedFrom = lead.type;
+}
+/* Restore from Archive: back as the buyer/seller they were, marked cold so they land in Re-engage. */
 function reactivateLead(id) {
   const lead = leads.find(l => l.id === id);
   if (!lead) return;
-  lead.type = 'cold'; lead.archivedAt = null;
-  saveLeads(); renderArchive(); toast(`${lead.name} reactivated ✓`);
+  const was = lead.archivedFrom && lead.archivedFrom !== 'archived' ? lead.archivedFrom : (lead.leadType || 'buyer');
+  lead.type = was === 'cold' || was === 'hot' ? (lead.leadType || 'buyer') : was;
+  lead.priority = 'cold'; lead.archivedAt = null; delete lead.archivedFrom;
+  saveLeads();
+  ['renderArchive','renderArchiveTools','renderLeads','renderDailyFocus'].forEach(f => { try { if (typeof window[f] === 'function') window[f](); } catch (e) { console.error(f, e); } });
+  toast(`${lead.name} restored to Re-engage ✓`);
 }
 
 /* ═══ ADD LEAD ═══ */
@@ -5513,7 +5526,7 @@ function renderArchiveTools() {
         <div style="font-size:12px;color:var(--text-dim)">${esc(l.name)}</div>
         <div style="font-size:10px;color:var(--muted)">${esc(l.criteria||'No criteria')}</div>
       </div>
-      <button onclick="unarchiveLead(${l.id});renderArchiveTools()" style="padding:5px 10px;background:var(--card2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text-dim);font-size:10px;cursor:pointer">Restore</button>
+      <button onclick="reactivateLead(${l.id})" style="padding:5px 10px;background:var(--card2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text-dim);font-size:10px;cursor:pointer">Restore</button>
     </div>`).join('');
 }
 
