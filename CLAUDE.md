@@ -15,7 +15,8 @@ Open it, see who needs you today, act, log, done. A feature belongs if it ends w
 - **Lead cards** build their insides only when opened (`renderLeadCard` + `toggleCard`). Keep it that way; building every card was the old slowness.
 
 ## Pipeline and urgency
-- `getUrgencyState(l)`: NOW / UPCOMING / WAITING / WARM / CHECK IN, based on who owes the next action.
+- `getUrgencyState(l)`: NOW / UPCOMING / WAITING / WARM / CHECK IN (shown to you as **Nudge**, so it isn't confused with past-client Check In), based on who owes the next action.
+- **Today cards** say why the person is there (`whyLine`: subjects countdown, task due, follow-up overdue/due, hot lead gone quiet) and when you last touched them (`lastTouchText`). Act Now sorts overdue first, then subjects/offers, then due today. No stat bar on Today.
 - Pipeline sections: **Deals in Motion** = `LIVE_DEAL_STAGES` (Listed, Offer Submitted/Received, Subjects). **Active Clients** = `WORKING_STAGES` (Listing Appointment, Agreement Signed, Active Search). Then Buyer Leads, Seller Leads, Cold / Re-engage.
 - **Cold priority overrides stage** (`isColdLead`): cold leads go to Re-engage only and keep their stage for when they come back.
 

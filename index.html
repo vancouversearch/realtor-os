@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Realtor OS</title>
-<meta name="ros-build" content="2026-10-24.2">
+<meta name="ros-build" content="2026-10-26.1">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -528,7 +528,6 @@ body::after{content:'';position:fixed;inset:0;background-image:url("data:image/s
 <!-- TODAY — DECISION ENGINE -->
 <div id="pg-focus" class="pg on">
   <div id="ptr-indicator" style="text-align:center;padding:0;height:0;overflow:hidden;transition:height .2s;font-size:11px;color:var(--muted)">↓ Pull to refresh</div>
-  <div id="today-stat-bar" style="display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border-bottom:1px solid var(--border);text-align:center;padding:10px 0"></div>
   <div class="today-wrap" id="today-wrap"></div>
 </div>
 
@@ -1923,7 +1922,7 @@ function urgencyPill(l) {
     case 'upcoming': return `<span class="urg-pill urg-soon">UPCOMING</span>`;
     case 'waiting':  return `<span class="urg-pill urg-ok">WAITING</span>`;
     case 'warm':     return `<span class="urg-pill urg-ok">WARM</span>`;
-    case 'checkin':  return `<span class="urg-pill urg-cold">CHECK IN</span>`;
+    case 'checkin':  return `<span class="urg-pill urg-cold">NUDGE</span>`;
     default:         return '';
   }
 }
@@ -3912,7 +3911,7 @@ function renderDailyFocus() {
   // ── helpers ──
   const nextAction = l => {
     const s = l.stage || 'New Lead';
-    if (s === 'New Lead')         return 'Reach out — introduce yourself';
+    if (s === 'New Lead')         return (l.activityLog||[]).length || l.lastContactDate ? 'Follow up' : 'Reach out — introduce yourself';
     if (s === 'Contacted')        return l.type === 'seller' ? 'Book valuation meeting' : 'Book consultation';
     if (s === 'Consultation')     return 'Send buyer agreement';
     if (s === 'Agreement Signed') return 'Start sending listings';
@@ -3938,12 +3937,41 @@ function renderDailyFocus() {
     const cnt = subjectsCountdown(l);
     if (cnt) return `<span class="tbadge tbadge-subjects">${cnt}</span>`;
     if (l.stage === 'Offer Submitted' || l.stage === 'Offer Received') return `<span class="tbadge tbadge-offer">Offer</span>`;
+    if (l.followUpDate && l.followUpDate < TODAY) return `<span class="tbadge tbadge-overdue">OVERDUE ${daysSince(l.followUpDate)}D</span>`;
     const state = getUrgencyState(l);
     if (state === 'now')      return `<span class="tbadge tbadge-today">NOW</span>`;
+    if (isColdLead(l) || l.type === 'cold') return `<span class="tbadge tbadge-soon">COLD</span>`;
     if (state === 'upcoming') return `<span class="tbadge tbadge-followup">UPCOMING</span>`;
     if (state === 'waiting')  return `<span class="tbadge tbadge-soon">WAITING</span>`;
-    if (state === 'checkin')  return `<span class="tbadge tbadge-soon">CHECK IN</span>`;
+    if (state === 'checkin')  return `<span class="tbadge tbadge-soon">NUDGE</span>`;
     return `<span class="tbadge tbadge-soon">WARM</span>`;
+  };
+
+  // Why this person is on the list today, in plain words (shown as the card's arrow line)
+  const whyLine = l => {
+    const cnt = subjectsCountdown(l); if (cnt) return cnt;
+    const task = (l.tasks||[]).filter(t => !t.done && t.date && t.date <= TODAY).sort((a,b) => a.date.localeCompare(b.date))[0];
+    if (task) return `${task.type || 'Task'}${task.date < TODAY ? ' · was due ' + agoText(task.date) : ' · due today'}`;
+    const step = nextAction(l), then = step === 'Follow up' ? '' : ' · ' + step;
+    if (l.followUpDate) {
+      const d = -daysSince(l.followUpDate);
+      if (d < 0)  return `Follow-up was due ${agoText(l.followUpDate)}${then}`;
+      if (d === 0) return `Follow-up due today${then}`;
+      if (d <= 3)  return `Follow-up ${agoText(l.followUpDate)}${then}`;
+    }
+    if (getUrgencyState(l) === 'now' && !['Offer Submitted','Offer Received','Subjects'].includes(l.stage)) {
+      const t = lastTouchDate(l);
+      return `${leadPrio(l) === 'hot' ? 'Hot lead, ' : ''}${t ? 'no contact in ' + daysSince(t) + ' days' : 'never contacted'}${then}`.replace(/^n/, 'N');
+    }
+    return step;
+  };
+  // Last real touch, e.g. "💬 Texted 3 days ago" / "Never contacted"
+  const lastTouchText = l => {
+    const t = lastTouchDate(l);
+    if (!t) return 'Never contacted';
+    const e = (l.activityLog||[]).filter(x => x && x.date).slice(-1)[0];
+    const what = e && todayISO(new Date(e.date)) === String(t).slice(0,10) ? (e.type || String(e.note||'').split(' — ')[0]) : 'Last touch';
+    return `${String(what).slice(0, 24)} ${agoText(t)}`;
   };
 
   const typeClass = l => {
@@ -3978,8 +4006,8 @@ function renderDailyFocus() {
         <div class="tday-avatar" style="${avatarStyle(l)}">${l.name[0].toUpperCase()}</div>
         <div class="tday-body">
           <div class="tday-name">${esc(l.name)}${done?' ✓':''}</div>
-          <div class="tday-criteria">${esc(l.criteria||'No criteria')}</div>
-          <div class="tday-action">→ ${cnt||nextAction(l)}</div>
+          <div class="tday-criteria">${esc(lastTouchText(l))} · ${esc(l.criteria||'No criteria')}</div>
+          <div class="tday-action">→ ${esc(whyLine(l))}</div>
         </div>
         <div class="tday-right">${badge(l)}</div>
       </div>
@@ -3993,14 +4021,14 @@ function renderDailyFocus() {
   const actNow = active.filter(l =>
     (l.followUpDate && l.followUpDate <= TODAY) ||
     l.stage === 'Subjects' || l.stage === 'Offer Submitted' || l.stage === 'Offer Received' ||
-    (urgencyScore(l) <= 1 && l.type !== 'cold')
+    (urgencyScore(l) <= 1 && l.type !== 'cold' && !isColdLead(l))
   );
   const actNowIds = new Set(actNow.map(l => l.id));
 
   // Coming Up: followUpDate in next 1-3 days, OR urgencyScore 2-4 (non-cold), not already in Act Now
   const comingUp = active.filter(l => {
     if (actNowIds.has(l.id)) return false;
-    if (l.type === 'cold') return false;
+    if (l.type === 'cold' || isColdLead(l)) return false;
     if (l.followUpDate) {
       const diff = -daysSince(l.followUpDate);
       return diff > 0 && diff <= 3;
@@ -4012,7 +4040,7 @@ function renderDailyFocus() {
   // Re-engage: cold OR urgency >= 14 days, not in above
   const reEngage = active.filter(l =>
     !actNowIds.has(l.id) && !comingUpIds.has(l.id) &&
-    (l.type === 'cold' || urgencyScore(l) >= 14)
+    (l.type === 'cold' || isColdLead(l))
   );
 
   // Today's showings
@@ -4140,7 +4168,12 @@ function renderDailyFocus() {
         <div class="today-chevron" id="today-chevron-actnow" style="transform:rotate(${todayState.actnow?'0':'180deg'}deg)">⌄</div>
       </div>
       <div id="today-body-actnow" style="display:${todayState.actnow?'block':'none'}">
-        ${actNow.sort((a,b)=>urgencyScore(a)-urgencyScore(b)).map(l=>renderTdayCard(l,'actnow')).join('')}
+        ${actNow.sort((a,b)=>{
+          const r = l => l.followUpDate && l.followUpDate < TODAY ? 0
+            : ['Subjects','Offer Submitted','Offer Received'].includes(l.stage) ? 1
+            : l.followUpDate === TODAY ? 2 : 3;
+          return r(a) - r(b) || String(a.followUpDate||'9999').localeCompare(String(b.followUpDate||'9999'));
+        }).map(l=>renderTdayCard(l,'actnow')).join('')}
       </div>
     </div>` : '';
 
@@ -4218,18 +4251,6 @@ function renderDailyFocus() {
     </div>`;
 
   wrap.innerHTML = briefingHTML + schedHTML + alertsHTML + actNowHTML + comingUpHTML + pcHTML + reEngageHTML + emptyHTML + '<div style="height:90px"></div>';
-
-  // ── STAT BAR ──
-  const allActive = leads.filter(l => l.type !== 'archived' && l.stage !== 'Closed' && l.stage !== 'Completed');
-  const overdueBar = allActive.filter(l => l.followUpDate && l.followUpDate < todayISO()).length;
-  const inMotionBar = allActive.filter(l => !isColdLead(l) && LIVE_DEAL_STAGES.includes(l.stage)).length;
-  const workingBar  = allActive.filter(l => !isColdLead(l) && WORKING_STAGES.includes(l.stage)).length;
-  document.getElementById('today-stat-bar').innerHTML = `
-    <div class="stat-bar-col"><span class="stat-bar-num">${allActive.length}</span><span class="stat-bar-lbl">Active</span></div>
-    <div class="stat-bar-col"><span class="stat-bar-num" style="color:var(--red)">${overdueBar}</span><span class="stat-bar-lbl">Overdue</span></div>
-    <div class="stat-bar-col"><span class="stat-bar-num" style="color:var(--gold)">${workingBar}</span><span class="stat-bar-lbl">Working</span></div>
-    <div class="stat-bar-col"><span class="stat-bar-num" style="color:var(--green)">${inMotionBar}</span><span class="stat-bar-lbl">In Motion</span></div>
-  `;
 }
 
 // Today tab contact log state
@@ -4563,7 +4584,7 @@ function renderPipeline() {
       ? pill('Overdue', 'background:rgba(192,80,80,.25);color:var(--red);border:1px solid rgba(192,80,80,.4);font-weight:500')
       : pill('Now', 'background:rgba(232,140,48,.25);color:var(--hot);border:1px solid rgba(232,140,48,.4)');
     if (state === 'upcoming') return pill('Soon', 'background:rgba(80,128,192,.2);color:var(--buyer)');
-    if (state === 'checkin')  return pill('Check in', 'background:rgba(74,170,122,.15);color:var(--seller)');
+    if (state === 'checkin')  return pill('Nudge', 'background:rgba(74,170,122,.15);color:var(--seller)');
     if (state === 'waiting')  return pill('Waiting', 'background:var(--card2);color:var(--muted);border:1px solid var(--border)');
     return pill('Warm', 'background:var(--card2);color:var(--muted);border:1px solid var(--border)');
   };
@@ -5105,6 +5126,14 @@ function nextCheckinDay(pc) {
 }
 function isCheckinDue(pc) { const n = nextCheckinDay(pc); return !n || n <= todayISO(); }
 /* Days until the next home anniversary (0 = today), or null if no closing date or it's not a year old yet. */
+/* Days until the next birthday (0 = today), in local days, or null if none saved. */
+function birthdayInDays(pc) {
+  const bd = parseDay(pc.birthday); if (!bd) return null;
+  const today = parseDay(todayISO());
+  const next = new Date(today.getFullYear(), bd.getMonth(), bd.getDate());
+  if (next < today) next.setFullYear(next.getFullYear() + 1);
+  return Math.round((next - today) / 86400000);
+}
 function anniversaryInDays(pc) {
   const cl = parseDay(pc.closing); if (!cl) return null;
   const today = parseDay(todayISO());
@@ -5126,14 +5155,15 @@ function getPastAlerts() {
   // Birthdays only: home anniversaries show under Check In on Today.
   const alerts = []; const now = new Date(); const in7 = new Date(); in7.setDate(in7.getDate()+7);
   pastClients.forEach(pc => {
-    if (pc.birthday) { const bd = new Date(pc.birthday); const ty = new Date(now.getFullYear(),bd.getMonth(),bd.getDate()); if (ty>=now&&ty<=in7) alerts.push({name:pc.name,label:`🎂 Birthday ${fmtDateShort(ty.toISOString())}`,emoji:'🎂'}); }
+    const n = birthdayInDays(pc);
+    if (n !== null && n <= 7) alerts.push({name:pc.name,label:`🎂 Birthday ${n === 0 ? 'today' : n === 1 ? 'tomorrow' : 'in ' + n + ' days'}`,emoji:'🎂'});
   });
   return alerts;
 }
 function getPastCardAlerts(pc) {
   const alerts=[]; const now=new Date(); const in30=new Date(); in30.setDate(in30.getDate()+30);
-  if (pc.birthday){const bd=new Date(pc.birthday);const ty=new Date(now.getFullYear(),bd.getMonth(),bd.getDate());if(ty>=now&&ty<=in30)alerts.push({emoji:'🎂'});}
-  if (pc.closing) {const cl=new Date(pc.closing); const an=new Date(now.getFullYear(),cl.getMonth(),cl.getDate());if(an>=now&&an<=in30)alerts.push({emoji:'🔑'});}
+  { const n = birthdayInDays(pc); if (n !== null && n <= 30) alerts.push({emoji:'🎂'}); }
+  { const n = anniversaryInDays(pc); if (n !== null && n <= 30) alerts.push({emoji:'🔑'}); }
   return alerts;
 }
 
