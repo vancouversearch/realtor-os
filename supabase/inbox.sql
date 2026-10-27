@@ -16,6 +16,7 @@ create table if not exists public.ros_inbox (
   area       text        check (area is null or char_length(area) <= 60),
   timeline   text        check (timeline is null or char_length(timeline) <= 30),
   estimate   jsonb       check (estimate is null or pg_column_size(estimate) <= 1500),
+  details    jsonb       check (details is null or pg_column_size(details) <= 4000),
   constraint ros_inbox_has_contact check (email is not null or phone is not null)
 );
 
@@ -23,7 +24,7 @@ alter table public.ros_inbox enable row level security;
 
 -- Visitors (anon) may only insert these columns. Signed in (authenticated = you; sign-ups are off) may read and clear.
 revoke all on public.ros_inbox from anon, authenticated;
-grant insert (source, name, email, phone, address, area, timeline, estimate) on public.ros_inbox to anon;
+grant insert (source, name, email, phone, address, area, timeline, estimate, details) on public.ros_inbox to anon;
 grant select, delete on public.ros_inbox to authenticated;
 
 drop policy if exists "visitors can send" on public.ros_inbox;
@@ -57,3 +58,6 @@ drop trigger if exists ros_inbox_limit on public.ros_inbox;
 create trigger ros_inbox_limit
   before insert on public.ros_inbox
   for each row execute function public.ros_inbox_limit();
+
+-- Migration: add details column if upgrading from an earlier version of this file.
+alter table public.ros_inbox add column if not exists details jsonb check (details is null or pg_column_size(details) <= 4000);

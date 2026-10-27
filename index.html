@@ -508,7 +508,7 @@ body::after{content:'';position:fixed;inset:0;background-image:url("data:image/s
     <div class="hdr-sub">Chris Zenone · Oakwyn</div>
   </div>
   <div class="hdr-right">
-    <button class="hdr-btn" onclick="exportCSV()">⬇ Export</button>
+    <button class="hdr-btn" onclick="exportBackup()">⬇ Export</button>
     <label class="hdr-btn" style="display:flex;align-items:center;gap:4px;cursor:pointer;">
       ⬆ Import<input type="file" id="import-file" accept=".csv" style="display:none" onchange="importCSV(event)">
     </label>
@@ -2525,6 +2525,7 @@ function confirmStagePrompt() {
     const pg = document.getElementById('pg-focus');
     if (!pg || !pg.classList.contains('on')) return;
     if (window.scrollY > 10) return;
+    if (!e.touches?.[0]) return;
     ptrStart = e.touches[0].clientY;
     ptrActive = true;
     ptrTriggered = false;
@@ -2535,6 +2536,7 @@ function confirmStagePrompt() {
     const pg = document.getElementById('pg-focus');
     if (!pg || !pg.classList.contains('on')) return;
     if (window.scrollY > 10) { ptrActive = false; return; }
+    if (!e.touches?.[0]) return;
     const dist = e.touches[0].clientY - ptrStart;
     if (dist < 0) { ptrActive = false; return; }
     const indicator = document.getElementById('ptr-indicator');
@@ -3883,7 +3885,7 @@ STRICT RULES:
 - Email: Subject line + 3-4 short sentences max
 - Call script: Opening line + 2-3 bullet points
 - Use "${firstName}" — never full name
-- First person as Chris, sign off "— Chris"
+- First person as Chris. No sign-off on texts; emails can end with "— Chris" if they need a sign-off
 - ONLY reference things confirmed in the lead profile above
 - Do NOT invent details, appointments, or context not listed
 - Every log entry is dated. Words like "tomorrow", "Friday" or "next week" inside a note are relative to THAT note's date, not today. A note from weeks ago is old news: don't write as if it just happened
@@ -3892,9 +3894,9 @@ STRICT RULES:
 - Sound like a real person texting, not a CRM
 
 GOOD TEXT EXAMPLES:
-"Hey Sam, found a detached on Lakewood that just hit the market — checks most of your boxes. Want me to get you in this week? — Chris"
-"Hey Priya, still thinking about timing on a sale? Happy to pull comps on your street so you know where you stand. — Chris"
-"Hey Luena, a 1-bed just came up near UBC under $500K — want the details? — Chris"
+"Hey Sam, found a detached on Lakewood that just hit the market — checks most of your boxes. Want me to get you in this week?"
+"Hey Priya, still thinking about timing on a sale? Happy to pull comps on your street so you know where you stand."
+"Hey Alex, a 1-bed just came up near UBC under $500K — want the details?"
 
 BAD (never write like this):
 "Hey Sam! I'm so excited to help you find your dream home! I've been keeping an eye on the market and there are some amazing opportunities!"
@@ -4485,6 +4487,7 @@ let swipeStartY = 0;
 let swipeLocked = false;
 
 function swipeStart(e, el) {
+  if (!e.touches?.[0]) return;
   swipeStartX = e.touches[0].clientX;
   swipeStartY = e.touches[0].clientY;
   swipeLocked = false;
@@ -4492,6 +4495,7 @@ function swipeStart(e, el) {
 }
 
 function swipeMove(e, el) {
+  if (!e.touches?.[0]) return;
   const dx = e.touches[0].clientX - swipeStartX;
   const dy = e.touches[0].clientY - swipeStartY;
   // if scrolling vertically more than horizontally, ignore
@@ -5296,15 +5300,36 @@ function renderArchive() {
 }
 
 /* ═══ CSV EXPORT / IMPORT ═══ */
+function exportBackup() {
+  // Full JSON backup — includes every field (activityLog, tasks, area, priority, etc.)
+  const backup = {
+    exportedAt: new Date().toISOString(),
+    version: 1,
+    leads,
+    pastClients,
+    showings,
+    notes,
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `realtor-os-backup-${todayISO()}.json`;
+  a.click(); URL.revokeObjectURL(url); toast('Full backup exported ✓');
+}
 function exportCSV() {
-  const headers = ['id','name','type','stage','phone','email','criteria','budget','timeline','motivation','preApproved','source','lastContact','followUpDate','notes','createdAt'];
-  const rows = leads.map(l => headers.map(h => `"${(l[h]||'').toString().replace(/"/g,'""')}"`).join(','));
+  const headers = ['id','name','type','leadType','priority','stage','phone','email','criteria','area','budget','timeline','motivation','preApproved','source','lastContact','followUpDate','notes','createdAt','archivedAt'];
+  const rows = leads.map(l => headers.map(h => {
+    const v = l[h];
+    if (v === null || v === undefined) return '""';
+    if (Array.isArray(v) || typeof v === 'object') return `"${JSON.stringify(v).replace(/"/g,'""')}"`;
+    return `"${v.toString().replace(/"/g,'""')}"`;
+  }).join(','));
   const csv = [headers.join(','), ...rows].join('\n');
-  const blob = new Blob([csv], {type:'text/csv'});
+  const blob = new Blob([csv], { type: 'text/csv' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href = url; a.download = `realtor-os-${todayISO()}.csv`;
-  a.click(); URL.revokeObjectURL(url); toast('Exported ✓');
+  a.click(); URL.revokeObjectURL(url); toast('CSV exported ✓');
 }
 function importCSV(e) {
   const file = e.target.files[0]; if (!file) return;
