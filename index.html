@@ -97,9 +97,11 @@ body::after{content:'';position:fixed;inset:0;background-image:url("data:image/s
 .lc-info{flex:1;min-width:0}
 .lc-name{font-size:13px;font-weight:500;color:var(--text);line-height:1.2}
 .lc-sub{font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lc-contact{font-size:10px;color:var(--text-dim);margin-top:3px;display:flex;gap:8px;align-items:center}
+.lc-contact{font-size:10px;color:var(--text-dim);margin-top:3px;display:flex;gap:4px;align-items:center;flex-wrap:wrap}
 .lc-contact a{color:var(--text-dim);text-decoration:none}
 .lc-contact a:active{color:var(--gold)}
+.lc-copy-btn{background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px;padding:0 3px;line-height:1;opacity:.6;margin-right:4px}
+.lc-copy-btn:active{color:var(--gold);opacity:1}
 
 /* URGENCY + STAGE PILLS */
 .lc-pills{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
@@ -2290,8 +2292,8 @@ function renderLeadCard(l) {
       </div>
       <div class="lc-sub" style="margin-top:2px">${esc(l.criteria || 'No criteria set')}</div>
       <div class="lc-contact">
-        ${l.phone ? `<a href="tel:${telHref(l.phone)}" onclick="event.stopPropagation()">📱 ${esc(l.phone)}</a>` : ''}
-        ${l.email ? `<a href="mailto:${l.email}" onclick="event.stopPropagation()">✉</a>` : ''}
+        ${l.phone ? `<a href="tel:${telHref(l.phone)}" onclick="event.stopPropagation()">📱 ${esc(l.phone)}</a><button class="lc-copy-btn" onclick="event.stopPropagation();copyToClipboard('${esc(l.phone)}');toast('Copied ✓')" title="Copy phone">⎘</button>` : ''}
+        ${l.email ? `<a href="mailto:${l.email}" onclick="event.stopPropagation()">✉ ${esc(l.email)}</a><button class="lc-copy-btn" onclick="event.stopPropagation();copyToClipboard('${esc(l.email)}');toast('Copied ✓')" title="Copy email">⎘</button>` : ''}
       </div>
     </div>
     <div class="lc-pills">${urgencyPill(l)}</div>
@@ -2520,6 +2522,16 @@ function confirmStagePrompt() {
   let ptrActive = false;
   let ptrTriggered = false;
   const THRESHOLD = 70;
+
+  // "/" to focus search from anywhere
+  document.addEventListener('keydown', e => {
+    if (e.key !== '/') return;
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return;
+    e.preventDefault();
+    const s = document.getElementById('lead-search');
+    if (s) { showTab('pg-leads'); s.focus(); s.select(); }
+  });
 
   document.addEventListener('touchstart', e => {
     const pg = document.getElementById('pg-focus');
@@ -5049,8 +5061,8 @@ function renderPastCard(pc) {
         <div class="past-name">${esc(pc.name)}</div>
         <div class="past-sub">${esc(pc.transaction||'Past client')}</div>
         <div class="lc-contact" style="margin-top:3px">
-          ${pc.phone ? `<a href="tel:${telHref(pc.phone)}" onclick="event.stopPropagation()">📱 ${esc(pc.phone)}</a>` : ''}
-          ${pc.email ? `<a href="mailto:${pc.email.split('/')[0].trim()}" onclick="event.stopPropagation()">✉ Email</a>` : ''}
+          ${pc.phone ? `<a href="tel:${telHref(pc.phone)}" onclick="event.stopPropagation()">📱 ${esc(pc.phone)}</a><button class="lc-copy-btn" onclick="event.stopPropagation();copyToClipboard('${esc(pc.phone)}');toast('Copied ✓')" title="Copy phone">⎘</button>` : ''}
+          ${pc.email ? `<a href="mailto:${pc.email.split('/')[0].trim()}" onclick="event.stopPropagation()">✉ ${esc(pc.email.split('/')[0].trim())}</a><button class="lc-copy-btn" onclick="event.stopPropagation();copyToClipboard('${esc(pc.email.split('/')[0].trim())}');toast('Copied ✓')" title="Copy email">⎘</button>` : ''}
         </div>
       </div>
       <div class="past-alert">${alertEmoji}</div>
