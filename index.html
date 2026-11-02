@@ -995,7 +995,7 @@ body::after{content:'';position:fixed;inset:0;background-image:url("data:image/s
       <button class="clm-btn" onclick="tdayLogAction('💬 Texted')">💬 Texted</button>
       <button class="clm-btn" onclick="tdayLogAction('📱 No answer')">📱 No answer</button>
       <button class="clm-btn" onclick="tdayLogAction('📩 Voicemail')">📩 Voicemail</button>
-      <button class="clm-btn" onclick="tdayLogAction('📤 Sent listings')">📤 Listings</button>
+      <button class="clm-btn" onclick="tdayLogAction('📤 Sent listings')">📤 Sent listings</button>
       <button class="clm-btn" onclick="tdayLogAction('🤝 Met in person')">🤝 Met</button>
     </div>
     <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Add a note (optional)</div>
@@ -1688,7 +1688,7 @@ async function callAI(prompt, maxTokens = 500, files = []) {
   if (!text) throw new Error(data?.error?.message || 'Empty response');
   return text;
 }
-const STAGES_BUYER  = ['New Lead','Contacted','Consultation','Agreement Signed','Active Search','Offer Submitted','Subjects','Closed'];
+const STAGES_BUYER  = ['New Lead','Contacted','Consultation','Active Search','Agreement Signed','Offer Submitted','Subjects','Closed'];
 const STAGES_SELLER = ['New Lead','Contacted','Listing Appointment','Listed','Offer Received','Subjects','Completed'];
 
 /* ═══ STATE ═══ */
@@ -2034,7 +2034,7 @@ function renderLeadCard(l) {
       <button class="act-log-btn" onclick="instantLog(${l.id},'💬 Texted')"     oncontextmenu="event.preventDefault();instantLogWithNote(${l.id},'💬 Texted')"     ontouchstart="startLongPress(${l.id},'💬 Texted',this)"  ontouchend="cancelLongPress()" ontouchmove="cancelLongPress()">💬 Texted</button>
       <button class="act-log-btn" onclick="instantLog(${l.id},'📱 No answer')"  oncontextmenu="event.preventDefault();instantLogWithNote(${l.id},'📱 No answer')"  ontouchstart="startLongPress(${l.id},'📱 No answer',this)" ontouchend="cancelLongPress()" ontouchmove="cancelLongPress()">📱 No answer</button>
       <button class="act-log-btn" onclick="instantLog(${l.id},'📩 Voicemail')"  oncontextmenu="event.preventDefault();instantLogWithNote(${l.id},'📩 Voicemail')"  ontouchstart="startLongPress(${l.id},'📩 Voicemail',this)" ontouchend="cancelLongPress()" ontouchmove="cancelLongPress()">📩 Voicemail</button>
-      <button class="act-log-btn" onclick="instantLog(${l.id},'📤 Sent listings')" oncontextmenu="event.preventDefault();instantLogWithNote(${l.id},'📤 Sent listings')" ontouchstart="startLongPress(${l.id},'📤 Sent listings',this)" ontouchend="cancelLongPress()" ontouchmove="cancelLongPress()">📤 Listings</button>
+      <button class="act-log-btn" onclick="instantLog(${l.id},'📤 Sent listings')" oncontextmenu="event.preventDefault();instantLogWithNote(${l.id},'📤 Sent listings')" ontouchstart="startLongPress(${l.id},'📤 Sent listings',this)" ontouchend="cancelLongPress()" ontouchmove="cancelLongPress()">📤 Sent listings</button>
       <button class="act-log-btn" onclick="instantLog(${l.id},'🤝 Met in person')" oncontextmenu="event.preventDefault();instantLogWithNote(${l.id},'🤝 Met in person')" ontouchstart="startLongPress(${l.id},'🤝 Met in person',this)" ontouchend="cancelLongPress()" ontouchmove="cancelLongPress()">🤝 Met</button>
     </div>
     <!-- Reactive Generate — shows after last activity -->
@@ -3940,9 +3940,9 @@ function renderDailyFocus() {
     const s = l.stage || 'New Lead';
     if (s === 'New Lead')         return (l.activityLog||[]).length || l.lastContactDate ? 'Follow up' : 'Reach out — introduce yourself';
     if (s === 'Contacted')        return l.type === 'seller' ? 'Book valuation meeting' : 'Book consultation';
-    if (s === 'Consultation')     return 'Send buyer agreement';
-    if (s === 'Agreement Signed') return 'Start sending listings';
-    if (s === 'Active Search')    return 'Book showings';
+    if (s === 'Consultation')     return 'Start active search — send listings';
+    if (s === 'Active Search')    return 'Get buyer agreement signed';
+    if (s === 'Agreement Signed') return 'Book showings';
     if (s === 'Listing Appointment')   return 'Discuss pricing & list date';
     if (s === 'Listed')           return 'Monitor & promote listing';
     if (s === 'Offer Submitted')  return 'Follow up on offer status';
@@ -4592,9 +4592,9 @@ function renderPipeline() {
     if (stage === 'New Lead')              return 'Reach out — introduce yourself';
     if (stage === 'Contacted')             return l.type === 'seller' ? 'Book listing appointment' : 'Book consultation call';
     if (stage === 'Listing Appointment')   return 'Prepare CMA & listing presentation';
-    if (stage === 'Consultation')     return 'Send buyer agreement';
-    if (stage === 'Agreement Signed') return 'Start sending listings';
-    if (stage === 'Active Search')    return 'Book showings';
+    if (stage === 'Consultation')     return 'Start active search — send listings';
+    if (stage === 'Active Search')    return 'Get buyer agreement signed';
+    if (stage === 'Agreement Signed') return 'Book showings';
     if (stage === 'Listing Appointment')   return 'Discuss pricing & list date';
     if (stage === 'Listed')           return 'Monitor & promote listing';
     if (stage === 'Offer Submitted')  return 'Follow up on offer status';
