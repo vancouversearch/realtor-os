@@ -5938,7 +5938,7 @@ function setVisible(v){
 }
 const _origST = window.switchTab;
 window.switchTab = function(id,el){ _origST(id,el); setVisible(id==='focus'); };
-setTimeout(()=>setVisible(!!document.getElementById('pg-focus')?.classList.contains('on')),200);
+setTimeout(()=>{const on=!!document.getElementById('pg-focus')?.classList.contains('on');console.log('[Sous] setVisible init: pg-focus.on=',on,document.getElementById('pg-focus')?.className);setVisible(on);},1000);
 
 /* ── idle bubbles ── */
 const pendingCount=()=>document.querySelectorAll('.ss-card[data-pending]').length;
